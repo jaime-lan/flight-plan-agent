@@ -46,6 +46,8 @@ tsx lib/agent/flight-planner.ts
 
 ## Roadmap
 
+### Rewrite the code in python!
+
 ### Real Flight Data Integration
 - [ ] Implement web scraping for real-time flight data
 - [ ] Add APIs for major flight booking platforms:

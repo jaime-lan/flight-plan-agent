@@ -1,36 +1,82 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AI Flight Planner Agent
 
-## Getting Started
+An intelligent flight planning assistant powered by OpenRouter's API that helps users find the best flight deals based on their preferences.
 
-First, run the development server:
+## Current Features
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- Interactive CLI interface for flight planning
+- Finds flights based on:
+  - Source/destination cities
+  - Departure/return dates 
+  - Budget constraints
+- Intelligent flight selection considering:
+  - Lowest prices
+  - Number of stops
+  - Flight duration
+- Multi-platform flight search (currently mocked data from Kiwi and Skyscanner)
+- Detailed itineraries with:
+  - Flight IDs
+  - Airlines
+  - Prices
+  - Stop information
+  - Duration
+  - Platform
+
+## Setup
+
+1. Create `.env.local` with:
+
+```
+OPENROUTER_API_KEY=your_openrouter_api_key
+API_BASE=https://openrouter.ai/api/v1   
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. Install dependencies:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```
+npm i
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+3. Run the CLI:
 
-## Learn More
+```
+tsx lib/agent/flight-planner.ts
+```
 
-To learn more about Next.js, take a look at the following resources:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Roadmap
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Real Flight Data Integration
+- [ ] Implement web scraping for real-time flight data
+- [ ] Add APIs for major flight booking platforms:
+  - Kiwi
+  - Skyscanner  
+  - Google Flights
+  - Kayak
+  - Expedia
+- [ ] Add ability for user to choose the platform they want to search on
 
-## Deploy on Vercel
+### User Personalization
+- [ ] Database integration to store:
+  - Search history
+  - Preferred airlines
+  - Common routes
+  - Price alerts (based on searches that are triggered daily)
+  - Travel preferences
+- [ ] Optimize search results via using tools such as llms, metadata, cohere reranging api
+- [ ] Personalized recommendations based on past searches
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### UI/UX Improvements  
+- [ ] Modern web interface with:
+  - Real-time chat
+  - Interactive calendar
+  - Price graphs
+  - Map visualization
+  - Mobile responsiveness
+- [ ] Email notifications
+- [ ] Booking integration
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Advanced Features
+- [ ] Multi-city trip planning
+- [ ] Alternative airport suggestions
+- [ ] Flexible date search

@@ -39,9 +39,17 @@ OPENAI_API_KEY=your_openai_api_key # Required for generating embeddings
 npm i
 ```
 
-3. Run the CLI:
+3. Generate and run database migrations:
 
+```bash
+npx drizzle-kit generate
+
+npx drizzle-kit migrate
 ```
+
+4. Run the CLI:
+
+```bash
 tsx lib/agent/flight-planner.ts
 ```
 

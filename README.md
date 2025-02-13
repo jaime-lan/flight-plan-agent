@@ -28,7 +28,9 @@ An intelligent flight planning assistant powered by OpenRouter's API that helps 
 
 ```
 OPENROUTER_API_KEY=your_openrouter_api_key
-API_BASE=https://openrouter.ai/api/v1   
+API_BASE=https://openrouter.ai/api/v1
+DATABASE_URL=your_postgres_database_url
+OPENAI_API_KEY=your_openai_api_key # Required for generating embeddings
 ```
 
 2. Install dependencies:

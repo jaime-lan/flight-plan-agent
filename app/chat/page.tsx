@@ -2,10 +2,12 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Send, Plus, Trash2, Edit, Menu } from "lucide-react";
+import { Send, Plus, Trash2, Edit, Menu, Copy, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
+import { handleAIcommunication } from "@/lib/agent/flight-planner";
+import ReactMarkdown from 'react-markdown';
 
 interface Message {
   id: string;
@@ -140,7 +142,6 @@ const Index = () => {
 
     setChats(prev => prev.map(chat => {
       if (chat.id === currentChatId) {
-        // Update chat name if it's the first message and still default
         const shouldUpdateName = chat.name === "New Chat" && chat.messages.length === 0;
         return {
           ...chat,
@@ -154,14 +155,17 @@ const Index = () => {
     setInput("");
     setIsLoading(true);
 
-    // Simulate AI response (replace with actual API call)
-    setTimeout(() => {
+    try {
+      // Call backend API
+      const response = await handleAIcommunication(userMessage.content);
+
       const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        content: "This is a simulated response. Replace this with actual API integration.",
+        id: Date.now().toString(),
+        content: response || "No response from AI",
         role: 'assistant',
         timestamp: new Date(),
       };
+
       setChats(prev => prev.map(chat => {
         if (chat.id === currentChatId) {
           return {
@@ -171,8 +175,12 @@ const Index = () => {
         }
         return chat;
       }));
+    } catch (error) {
+      toast.error("Failed to get response from AI");
+      console.error(error);
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -180,6 +188,27 @@ const Index = () => {
       e.preventDefault();
       handleSubmit(e);
     }
+  };
+
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success("Copied to clipboard");
+    } catch (error) {
+      toast.error("Failed to copy text", {
+        description: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  };
+
+  const downloadAsTextFile = (text: string, filename: string) => {
+    const element = document.createElement("a");
+    const file = new Blob([text], { type: "text/plain" });
+    element.href = URL.createObjectURL(file);
+    element.download = filename;
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
   };
 
   return (
@@ -202,80 +231,80 @@ const Index = () => {
         </div>
       </header>
 
-      <div className="flex flex-1 max-w-6xl mx-auto w-full">
-        {/* Chat List Sidebar */}
+      <div className="flex flex-1 max-w-6xl mx-auto w-full overflow-hidden">
+        {/* Chat List Sidebar with fixed positioning and separate scroll area */}
         <div
           className={cn(
-            "border-r bg-muted/10 transition-all duration-300 ease-in-out",
+            "border-r bg-muted/10 transition-all duration-300 ease-in-out flex flex-col h-[calc(100vh-3.5rem)]",
             isSidebarOpen ? "w-64" : "w-0 opacity-0 overflow-hidden"
           )}
         >
-          <div className="p-4 flex flex-col gap-2 h-full">
+          <div className="p-4">
             <Button onClick={createNewChat} className="w-full flex items-center gap-2">
               <Plus className="h-4 w-4" />
               New Chat
             </Button>
-            <ScrollArea className="flex-1">
-              <div className="space-y-2 mt-4">
-                {chats.map((chat) => (
-                  <div
-                    key={chat.id}
-                    className={cn(
-                      "group flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent cursor-pointer",
-                      chat.id === currentChatId ? "bg-accent" : ""
-                    )}
-                    onClick={() => setCurrentChatId(chat.id)}
-                  >
-                    {editingChatId === chat.id ? (
-                      <input
-                        ref={editInputRef}
-                        type="text"
-                        value={editingName}
-                        onChange={(e) => setEditingName(e.target.value)}
-                        onKeyDown={handleEditKeyDown}
-                        onBlur={saveEditingChat}
-                        className="flex-1 bg-transparent border-none focus:outline-none focus:ring-1 focus:ring-ring rounded px-1"
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    ) : (
-                      <span className="flex-1 truncate">
-                        {chat.name}
-                      </span>
-                    )}
-                    <div className="flex gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="opacity-0 group-hover:opacity-100 h-8 w-8"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          startEditingChat(chat);
-                        }}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="opacity-0 group-hover:opacity-100 h-8 w-8"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          deleteChat(chat.id);
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </ScrollArea>
           </div>
+          <ScrollArea className="flex-1 px-4 pb-4">
+            <div className="space-y-2">
+              {chats.map((chat) => (
+                <div
+                  key={chat.id}
+                  className={cn(
+                    "group flex items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent cursor-pointer",
+                    chat.id === currentChatId ? "bg-accent" : ""
+                  )}
+                  onClick={() => setCurrentChatId(chat.id)}
+                >
+                  {editingChatId === chat.id ? (
+                    <input
+                      ref={editInputRef}
+                      type="text"
+                      value={editingName}
+                      onChange={(e) => setEditingName(e.target.value)}
+                      onKeyDown={handleEditKeyDown}
+                      onBlur={saveEditingChat}
+                      className="flex-1 bg-transparent border-none focus:outline-none focus:ring-1 focus:ring-ring rounded px-1"
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  ) : (
+                    <span className="truncate max-w-[140px]">
+                      {chat.name}
+                    </span>
+                  )}
+                  <div className="flex gap-1 shrink-0 ml-2">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="opacity-0 group-hover:opacity-100 h-8 w-8"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        startEditingChat(chat);
+                      }}
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="opacity-0 group-hover:opacity-100 h-8 w-8"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteChat(chat.id);
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
         </div>
 
         {/* Chat Area */}
-        <div className="flex-1 flex flex-col">
-          <ScrollArea className="flex-1 p-4 space-y-4">
+        <div className="flex-1 flex flex-col h-[calc(100vh-3.5rem)] overflow-hidden">
+          <ScrollArea className="flex-1 p-4">
             <div className="space-y-6">
               {messages.map((message) => (
                 <div
@@ -287,16 +316,51 @@ const Index = () => {
                 >
                   <div
                     className={cn(
-                      "rounded-lg p-4 max-w-[80%] shadow-sm",
+                      "rounded-lg p-4 max-w-[80%] shadow-sm relative group",
                       message.role === "assistant"
                         ? "bg-background border"
                         : "bg-primary text-primary-foreground"
                     )}
                   >
-                    <p className="whitespace-pre-wrap">{message.content}</p>
+                    {message.role === 'assistant' ? (
+                      <div className="prose prose-sm dark:prose-invert max-w-none">
+                        <ReactMarkdown>
+                          {message.content}
+                        </ReactMarkdown>
+                      </div>
+                    ) : (
+                      <p className="whitespace-pre-wrap">{message.content}</p>
+                    )}
                     <span className="text-xs opacity-50 mt-2 block">
                       {new Date(message.timestamp).toLocaleTimeString()}
                     </span>
+                    
+                    {/* Action buttons */}
+                    <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={() => copyToClipboard(message.content)}
+                      >
+                        <Copy className="h-3 w-3" />
+                        <span className="sr-only">Copy text</span>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={() => 
+                          downloadAsTextFile(
+                            message.content, 
+                            `message-${new Date(message.timestamp).toISOString().split('T')[0]}.txt`
+                          )
+                        }
+                      >
+                        <Download className="h-3 w-3" />
+                        <span className="sr-only">Download as text</span>
+                      </Button>
+                    </div>
                   </div>
                 </div>
               ))}

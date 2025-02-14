@@ -5,7 +5,7 @@ import { saveMemory, getMemory } from "./memory-ops";
 import {
   ChatCompletionMessageParam
 } from "../../node_modules/openai/resources"; // for tools and memory
-import * as readline from "readline";
+// import * as readline from "readline";
 import { flights } from "./mock-data";
 import { mainTools, planTripTools } from "./tools";
 
@@ -16,17 +16,17 @@ const openai = new OpenAI({
   baseURL: process.env.API_BASE,
 });
 
-async function main() {
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-  });
+export async function handleAIcommunication(userMessage: string) {
+  // const rl = readline.createInterface({
+  //   input: process.stdin,
+  //   output: process.stdout,
+  // });
 
-  const askQustion = (question: string): Promise<string> => {
-    return new Promise((resolve) => rl.question(question, resolve));
-  };
+  // const askQustion = (question: string): Promise<string> => {
+  //   return new Promise((resolve) => rl.question(question, resolve));
+  // };
 
-  console.log("Welcome to the flight planner! Type `exit` to quit.");
+  // console.log("Welcome to the flight planner! Type `exit` to quit.");
 
   const conversation: ChatCompletionMessageParam[] = [
     {
@@ -36,48 +36,47 @@ async function main() {
         "You are a flight planner assistant. Gather the source city, destination city, departure date, return date and budget from the user. Return a list of flights that match the criteria and are within the user's budget. If you do not find any flights or if all flights are over budget, politely notify the user. You also have access to a memory tools that allow you to save and retrieve user-related information from the database. Use those tools **only** when you are missing information or when you have a new imformation about the user. Before asking for any information, check if you have already saved the information about the user in the database. If any information is still missing, ask the user for it.",
     }
   ];
+  const userInput = userMessage;
+  // const userInput = await askQustion("You: ");
+  // if (userInput.toLowerCase() === "exit") {
+  //   console.log("Exiting...");
+  //   break;
+  // }
+  conversation.push({ role: "user", content: userInput });
+  try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: conversation,
+      tools: mainTools,
+      tool_choice: "auto",
+    });
 
-  while (true) {
-    const userInput = await askQustion("You: ");
-    if (userInput.toLowerCase() === "exit") {
-      console.log("Exiting...");
-      break;
-    }
-    conversation.push({ role: "user", content: userInput });
-    try {
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o",
+    const message = response.choices[0].message;
+
+  //   console.log(`AI Response:`, message);
+
+    if (message.tool_calls) {
+      for (const toolCall of message.tool_calls) {
+        const args = JSON.parse(toolCall.function.arguments);
+        console.log(`Calling ${toolCall.function.name} function with args: ${JSON.stringify(args)}`);
+        const result = await executeFunction(toolCall.function.name, args);
+        conversation.push({ role: "assistant", content: message.content, tool_calls: message.tool_calls }, { role: "tool", tool_call_id: toolCall.id, content: JSON.stringify(result) });
+      }
+      const finalResponse = await openai.chat.completions.create({
+        model: "qwen/qwen-max",
         messages: conversation,
         tools: mainTools,
-        tool_choice: "auto",
       });
-
-      const message = response.choices[0].message;
-
-    //   console.log(`AI Response:`, message);
-
-      if (message.tool_calls) {
-        for (const toolCall of message.tool_calls) {
-          const args = JSON.parse(toolCall.function.arguments);
-          console.log(`Calling ${toolCall.function.name} function with args: ${JSON.stringify(args)}`);
-          const result = await executeFunction(toolCall.function.name, args);
-          conversation.push({ role: "assistant", content: message.content, tool_calls: message.tool_calls }, { role: "tool", tool_call_id: toolCall.id, content: JSON.stringify(result) });
-        }
-        const finalResponse = await openai.chat.completions.create({
-          model: "qwen/qwen-max",
-          messages: conversation,
-          tools: mainTools,
-        });
-        console.log(`AI:`, finalResponse.choices[0].message.content);
-      } else {
-        conversation.push({ role: "assistant", content: message.content });
-        console.log(`AI:`, message.content);
-      }
-    } catch (error) {
-      console.error("Error:", error);
+      console.log(`AI:`, finalResponse.choices[0].message.content);
+      return finalResponse.choices[0].message.content;
+    } else {
+      conversation.push({ role: "assistant", content: message.content });
+      console.log(`AI:`, message.content);
+      return message.content;
     }
+  } catch (error) {
+    console.error("Error:", error);
   }
-  rl.close();
 }
 
 
@@ -87,7 +86,7 @@ async function planFlight(sourceCity: string, destination: string, departureDate
     const planningHistory: ChatCompletionMessageParam[] = [
       {
         role: "system",
-        content: `You are planning a trip from ${sourceCity} to ${destination} from ${departureDate} to ${returnDate} with a budget of $${budget}. Use the provided tools to search for flights that match the criteria and are within the budget. You need to find the cheapest option. If 2 flights have the same price, return the one with the least stops. **If there are still multiple options, return them all.** In final itinerary, include the flight id, source city, destination city, departure date, return date, airline, price, stops, flight duration and platform for all flights matching the criteria.`
+        content: `You are planning a trip from ${sourceCity} to ${destination} from ${departureDate} to ${returnDate} with a budget of $${budget}. Use the provided tools to search for flights that match the criteria and are within the budget. You need to find the cheapest option. If 2 flights have the same price, return the one with the least stops. **If there are still multiple options, return them all.** In final itinerary, include the flight id, source city, destination city, departure date, return date, airline, price, stops, flight duration and platform for **all** flights matching the criteria.`
       }
     ];
   
@@ -178,4 +177,4 @@ async function executeFunction(name: string, args: any): Promise<any> {
     return result;
 }
 
-main();
+// main();

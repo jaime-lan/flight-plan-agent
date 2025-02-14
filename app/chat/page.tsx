@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Send, Plus, Trash2, Edit } from "lucide-react";
+import { Send, Plus, Trash2, Edit, Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
@@ -25,12 +25,7 @@ const Index = () => {
   const [chats, setChats] = useState<Chat[]>(() => {
     if (typeof window !== 'undefined') {
       const savedChats = localStorage.getItem('chats');
-      return savedChats ? JSON.parse(savedChats) : [{
-        id: Date.now().toString(),
-        name: "New Chat",
-        messages: [],
-        createdAt: new Date()
-      }];
+      return savedChats ? JSON.parse(savedChats) : [];
     }
     return [{
       id: Date.now().toString(),
@@ -46,6 +41,7 @@ const Index = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [editingChatId, setEditingChatId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const editInputRef = useRef<HTMLInputElement>(null);
@@ -191,74 +187,90 @@ const Index = () => {
       {/* Navbar */}
       <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="max-w-6xl mx-auto">
-          <div className="h-14 flex items-center px-4 font-semibold">
-            AI Flight Assistant
+          <div className="h-14 flex items-center px-4">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="mr-4"
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            >
+              <Menu className="h-5 w-5" />
+              <span className="sr-only">Toggle sidebar</span>
+            </Button>
+            <span className="font-semibold">AI Flight Assistant</span>
           </div>
         </div>
       </header>
 
       <div className="flex flex-1 max-w-6xl mx-auto w-full">
         {/* Chat List Sidebar */}
-        <div className="w-64 border-r bg-muted/10 p-4 flex flex-col gap-2">
-          <Button onClick={createNewChat} className="w-full flex items-center gap-2">
-            <Plus className="h-4 w-4" />
-            New Chat
-          </Button>
-          <ScrollArea className="flex-1">
-            <div className="space-y-2 mt-4">
-              {chats.map((chat) => (
-                <div
-                  key={chat.id}
-                  className={cn(
-                    "group flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent cursor-pointer",
-                    chat.id === currentChatId ? "bg-accent" : ""
-                  )}
-                  onClick={() => setCurrentChatId(chat.id)}
-                >
-                  {editingChatId === chat.id ? (
-                    <input
-                      ref={editInputRef}
-                      type="text"
-                      value={editingName}
-                      onChange={(e) => setEditingName(e.target.value)}
-                      onKeyDown={handleEditKeyDown}
-                      onBlur={saveEditingChat}
-                      className="flex-1 bg-transparent border-none focus:outline-none focus:ring-1 focus:ring-ring rounded px-1"
-                      onClick={(e) => e.stopPropagation()}
-                    />
-                  ) : (
-                    <span className="flex-1 truncate">
-                      {chat.name}
-                    </span>
-                  )}
-                  <div className="flex gap-1">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="opacity-0 group-hover:opacity-100 h-8 w-8"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        startEditingChat(chat);
-                      }}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="opacity-0 group-hover:opacity-100 h-8 w-8"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        deleteChat(chat.id);
-                      }}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+        <div
+          className={cn(
+            "border-r bg-muted/10 transition-all duration-300 ease-in-out",
+            isSidebarOpen ? "w-64" : "w-0 opacity-0 overflow-hidden"
+          )}
+        >
+          <div className="p-4 flex flex-col gap-2 h-full">
+            <Button onClick={createNewChat} className="w-full flex items-center gap-2">
+              <Plus className="h-4 w-4" />
+              New Chat
+            </Button>
+            <ScrollArea className="flex-1">
+              <div className="space-y-2 mt-4">
+                {chats.map((chat) => (
+                  <div
+                    key={chat.id}
+                    className={cn(
+                      "group flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent cursor-pointer",
+                      chat.id === currentChatId ? "bg-accent" : ""
+                    )}
+                    onClick={() => setCurrentChatId(chat.id)}
+                  >
+                    {editingChatId === chat.id ? (
+                      <input
+                        ref={editInputRef}
+                        type="text"
+                        value={editingName}
+                        onChange={(e) => setEditingName(e.target.value)}
+                        onKeyDown={handleEditKeyDown}
+                        onBlur={saveEditingChat}
+                        className="flex-1 bg-transparent border-none focus:outline-none focus:ring-1 focus:ring-ring rounded px-1"
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    ) : (
+                      <span className="flex-1 truncate">
+                        {chat.name}
+                      </span>
+                    )}
+                    <div className="flex gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="opacity-0 group-hover:opacity-100 h-8 w-8"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          startEditingChat(chat);
+                        }}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="opacity-0 group-hover:opacity-100 h-8 w-8"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteChat(chat.id);
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          </ScrollArea>
+                ))}
+              </div>
+            </ScrollArea>
+          </div>
         </div>
 
         {/* Chat Area */}

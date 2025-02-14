@@ -1,3 +1,4 @@
+"use server";
 import dotenv from "dotenv";
 import OpenAI from "openai";
 import { saveMemory, getMemory } from "./memory-ops";

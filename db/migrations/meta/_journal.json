@@ -8,6 +8,13 @@
       "when": 1739464160802,
       "tag": "0000_faulty_hex",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1739797115426,
+      "tag": "0001_lazy_supernaut",
+      "breakpoints": true
     }
   ]
 }

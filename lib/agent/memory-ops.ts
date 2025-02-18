@@ -20,6 +20,7 @@ export async function getMemory(query: string){
     const similarity = sql<number>`${cosineDistance(memoriesTable.embedding, embedding[0])}`;
 
     const memToReturn = await db.query.memories.findMany({
+        where: (memories, { gt }) => gt(similarity, 0.7),
         orderBy: asc(similarity),
         limit: MEMORY_LIMIT
     });

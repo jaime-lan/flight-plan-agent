@@ -8,6 +8,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import { handleAIcommunication } from "@/lib/agent/flight-planner";
 import ReactMarkdown from 'react-markdown';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface Message {
   id: string;
@@ -24,21 +25,9 @@ interface Chat {
 }
 
 const Index = () => {
-  const [chats, setChats] = useState<Chat[]>(() => {
-    if (typeof window !== 'undefined') {
-      const savedChats = localStorage.getItem('chats');
-      return savedChats ? JSON.parse(savedChats) : [];
-    }
-    return [{
-      id: Date.now().toString(),
-      name: "New Chat",
-      messages: [],
-      createdAt: new Date()
-    }];
-  });
-  const [currentChatId, setCurrentChatId] = useState<string>(() => {
-    return chats[0]?.id || '';
-  });
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [chats, setChats] = useState<Chat[]>([]);
+  const [currentChatId, setCurrentChatId] = useState<string>('');
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [editingChatId, setEditingChatId] = useState<string | null>(null);
@@ -49,13 +38,30 @@ const Index = () => {
   const editInputRef = useRef<HTMLInputElement>(null);
 
   const currentChat = chats.find(chat => chat.id === currentChatId);
+  //eslint-disable-next-line
   const messages = currentChat?.messages || [];
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    const savedChats = localStorage.getItem('chats');
+    const initialChats = savedChats 
+      ? JSON.parse(savedChats) 
+      : [{
+          id: Date.now().toString(),
+          name: "New Chat",
+          messages: [],
+          createdAt: new Date()
+        }];
+    
+    setChats(initialChats);
+    setCurrentChatId(initialChats[0]?.id || '');
+    setIsInitialized(true);
+  }, []);
+
+  useEffect(() => {
+    if (isInitialized) {
       localStorage.setItem('chats', JSON.stringify(chats));
     }
-  }, [chats]);
+  }, [chats, isInitialized]);
 
   useEffect(() => {
     if (editingChatId && editInputRef.current) {
@@ -129,6 +135,13 @@ const Index = () => {
     }
   };
 
+  const convertToChatCompletionMessages = (messages: Message[]) => {
+    return messages.map(message => ({
+      role: message.role,
+      content: message.content
+    }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
@@ -140,28 +153,36 @@ const Index = () => {
       timestamp: new Date(),
     };
 
-    setChats(prev => prev.map(chat => {
-      if (chat.id === currentChatId) {
-        const shouldUpdateName = chat.name === "New Chat" && chat.messages.length === 0;
-        return {
-          ...chat,
-          name: shouldUpdateName ? userMessage.content.slice(0, 30) : chat.name,
-          messages: [...chat.messages, userMessage]
-        };
-      }
-      return chat;
-    }));
+    let updatedChat: Chat | undefined;
+    setChats(prev => {
+      const newChats = prev.map(chat => {
+        if (chat.id === currentChatId) {
+          const shouldUpdateName = chat.name === "New Chat" && chat.messages.length === 0;
+          const updatedChatItem = {
+            ...chat,
+            name: shouldUpdateName ? userMessage.content.slice(0, 30) : chat.name,
+            messages: [...chat.messages, userMessage]
+          };
+          updatedChat = updatedChatItem;
+          return updatedChatItem;
+        }
+        return chat;
+      });
+      return newChats;
+    });
     
     setInput("");
     setIsLoading(true);
 
     try {
-      // Call backend API
-      const response = await handleAIcommunication(userMessage.content);
+      const previousMessages = updatedChat?.messages.slice(0, -1) || [];
+      const previousConversation = convertToChatCompletionMessages(previousMessages);
+      
+      const response = await handleAIcommunication(userMessage.content, previousConversation);
 
       const assistantMessage: Message = {
         id: Date.now().toString(),
-        content: response || "No response from AI",
+        content: response.content || "AI failed to generate a response",
         role: 'assistant',
         timestamp: new Date(),
       };
@@ -211,9 +232,20 @@ const Index = () => {
     document.body.removeChild(element);
   };
 
+  if (!isInitialized) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center">
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <div className="w-2 h-2 rounded-full bg-current animate-pulse" />
+          <div className="w-2 h-2 rounded-full bg-current animate-pulse animation-delay-200" />
+          <div className="w-2 h-2 rounded-full bg-current animate-pulse animation-delay-400" />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col h-screen">
-      {/* Navbar */}
       <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="max-w-6xl mx-auto">
           <div className="h-14 flex items-center px-4">
@@ -232,7 +264,6 @@ const Index = () => {
       </header>
 
       <div className="flex flex-1 max-w-6xl mx-auto w-full overflow-hidden">
-        {/* Chat List Sidebar with fixed positioning and separate scroll area */}
         <div
           className={cn(
             "border-r bg-muted/10 transition-all duration-300 ease-in-out flex flex-col h-[calc(100vh-3.5rem)]",
@@ -302,7 +333,6 @@ const Index = () => {
           </ScrollArea>
         </div>
 
-        {/* Chat Area */}
         <div className="flex-1 flex flex-col h-[calc(100vh-3.5rem)] overflow-hidden">
           <ScrollArea className="flex-1 p-4">
             <div className="space-y-6">
@@ -335,31 +365,49 @@ const Index = () => {
                       {new Date(message.timestamp).toLocaleTimeString()}
                     </span>
                     
-                    {/* Action buttons */}
                     <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6"
-                        onClick={() => copyToClipboard(message.content)}
-                      >
-                        <Copy className="h-3 w-3" />
-                        <span className="sr-only">Copy text</span>
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6"
-                        onClick={() => 
-                          downloadAsTextFile(
-                            message.content, 
-                            `message-${new Date(message.timestamp).toISOString().split('T')[0]}.txt`
-                          )
-                        }
-                      >
-                        <Download className="h-3 w-3" />
-                        <span className="sr-only">Download as text</span>
-                      </Button>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={() => copyToClipboard(message.content)}
+                            >
+                              <Copy className="h-3 w-3" />
+                              <span className="sr-only">Copy text</span>
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Copy to clipboard</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={() => 
+                                downloadAsTextFile(
+                                  message.content, 
+                                  `message-${new Date(message.timestamp).toISOString().split('T')[0]}.txt`
+                                )
+                              }
+                            >
+                              <Download className="h-3 w-3" />
+                              <span className="sr-only">Download as text</span>
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Download as text</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     </div>
                   </div>
                 </div>

@@ -35,13 +35,14 @@ export async function handleAIcommunication(
   
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-4o",
       messages: conversation,
       tools: mainTools,
       tool_choice: "auto",
     });
 
-    const message = response.choices[0].message;
+    const message = response.choices[0]?.message;
+    if (!message) throw new Error("No response from OpenAI");
 
     if (message.tool_calls) {
       for (const toolCall of message.tool_calls) {
@@ -55,14 +56,17 @@ export async function handleAIcommunication(
       }
       
       const finalResponse = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
+        model: "gpt-4o",
         messages: conversation,
         tools: mainTools,
       });
       
-      conversation.push({ role: "assistant", content: finalResponse.choices[0].message.content });
+      const finalMessage = finalResponse.choices[0]?.message;
+      if (!finalMessage) throw new Error("No final response from OpenAI");
+
+      conversation.push({ role: "assistant", content: finalMessage.content });
       return { 
-        content: finalResponse.choices[0].message.content,
+        content: finalMessage.content,
         conversation 
       };
     } else {
